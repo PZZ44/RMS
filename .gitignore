@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+venv/
+.env.*
+
+# Docker
+*.log
+
+# PostgreSQL
+postgres_data/
+
+# Node / frontend build (потенциальная доработка)
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db

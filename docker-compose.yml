@@ -1,0 +1,77 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: spr_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: spr_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  spr:
+    build: ./spr
+    container_name: spr_app
+    command: uvicorn main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/spr_db
+      BKI_URL: http://bki:8100/bki/score
+      SIM_URL: http://sim:8200/sim/score
+      RISK_SERVICE_URL: http://risk:8000/risk/calculate
+    depends_on:
+      - postgres
+      - bki
+      - sim
+      - risk
+
+  risk:
+    build: ./risk_service
+    container_name: risk_service
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    ports:
+      - "8000:8000"
+
+  bki:
+    build: ./bki
+    container_name: bki_service
+    command: uvicorn main:app --host 0.0.0.0 --port 8100
+    ports:
+      - "8100:8100"
+
+  sim:
+    build: ./sim
+    container_name: sim_service
+    command: uvicorn main:app --host 0.0.0.0 --port 8200
+    ports:
+      - "8200:8200"
+
+  appl_service:
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    build: ./appl_service
+    container_name: appl_service
+    command: uvicorn main:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+   
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - appl_service
+
+volumes:
+  postgres_data:
