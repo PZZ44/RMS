@@ -1,11 +1,7 @@
-// ===============================
-// CONFIG
-// ===============================
+
 const API_BASE = 'http://127.0.0.1:8002'; // 
 
-// ===============================
-// ELEMENTS
-// ===============================
+
 const amountInput = document.getElementById('amountInput');
 const amountRange = document.getElementById('amountRange');
 const daysInput = document.getElementById('daysInput');
@@ -25,27 +21,21 @@ const birthDate = document.getElementById('birthDate');
 const passport = document.getElementById('passport');
 const phone = document.getElementById('phone');
 
-// ===============================
-// UI STATE
-// ===============================
+
 let id = null;
 let decision = null;
 let approved_amount = null;
 let approved_days = null;
 let reject_reason = null;
 
-// ===============================
-// RANGE SYNC
-// ===============================
+
 amountInput.oninput = () => amountRange.value = amountInput.value;
 amountRange.oninput = () => amountInput.value = amountRange.value;
 
 daysInput.oninput = () => daysRange.value = daysInput.value;
 daysRange.oninput = () => daysInput.value = daysRange.value;
 
-// ===============================
-// STEP SWITCH
-// ===============================
+
 toFormBtn.onclick = () => {
   stepLoan.classList.add('hidden');
   stepForm.classList.remove('hidden');
@@ -56,12 +46,9 @@ toFormBtn.onclick = () => {
   document.getElementById('subtitle').innerText = '';
 };
 
-// ===============================
-// VALIDATION HELPERS
-// ===============================
 function onlyCyrillic(input) {
   input.addEventListener('input', () => {
-    input.value = input.value.replace(/[^а-яА-ЯёЁ]/g, '');
+    input.value = input.value.replace(/[^а-яА-ЯёЁ\s]/g, '');
   });
 }
 
@@ -69,9 +56,9 @@ onlyCyrillic(firstName);
 onlyCyrillic(lastName);
 onlyCyrillic(middleName);
 
-// ===============================
-// PASSPORT MASK (1234 567890)
-// ===============================
+
+// PASSPORT 
+
 passport.addEventListener('input', () => {
   let digits = passport.value.replace(/\D/g, '').slice(0, 10);
   passport.value = digits.length <= 4
@@ -79,9 +66,9 @@ passport.addEventListener('input', () => {
     : digits.slice(0, 4) + ' ' + digits.slice(4);
 });
 
-// ===============================
-// PHONE MASK +7(___)___-__-__
-// ===============================
+
+// PHONE 
+
 phone.addEventListener('focus', () => {
   if (!phone.value) phone.value = '+7';
 });
@@ -101,14 +88,23 @@ phone.addEventListener('input', () => {
   phone.value = result;
 });
 
-// ===============================
-// SUBMIT APPLICATION
-// ===============================
+
+// APPLICATION
+
 submitBtn.onclick = async () => {
   submitBtn.disabled = true;
   submitBtn.textContent = 'Отправляем...';
 
   try {
+    const today = new Date();
+    const birth = new Date(birthDate.value);
+
+    if (!birthDate.value || birth > today) {
+      alert('Введите корректную дату рождения');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Получить решение';
+      return;
+    }
     const payload = {
       first_name: firstName.value.trim(),
       last_name: lastName.value.trim(),
@@ -146,10 +142,15 @@ submitBtn.onclick = async () => {
   }
 };
 
-// ===============================
-// COUNTER ACTIONS
-// ===============================
+
+// COUNTER
+
 async function acceptCounter() {
+  document.getElementById('mainTitle').innerText =
+    'Пришло решение по вашему займу';
+
+  document.getElementById('subtitle').innerText = '';
+
   stepDecision.innerHTML = '<p>Подтверждаем условия...</p>';
 
   try {
@@ -174,6 +175,10 @@ async function acceptCounter() {
 }
 
 async function rejectCounter() {
+  document.getElementById('mainTitle').innerText =
+    'Пришло решение по вашему займу';
+
+  document.getElementById('subtitle').innerText = '';
   await fetch(
     `${API_BASE}/applications/${id}/counter/reject`,
     { method: 'POST' }
@@ -184,19 +189,21 @@ async function rejectCounter() {
   renderDecision();
 }
 
-// ===============================
-// RENDER DECISION
-// ===============================
+
+
 function renderDecision() {
-  stepForm.classList.add('hidden');
-  stepDecision.classList.remove('hidden');
+  document.getElementById('mainTitle').innerText =
+    'Пришло решение по вашему займу';
+
+  document.getElementById('subtitle').innerText = '';
+    stepForm.classList.add('hidden');
+    stepDecision.classList.remove('hidden');
 
   if (decision === 'APPROVED') {
     stepDecision.innerHTML = `
       <div class="status-approved">Заявка одобрена</div>
       <p>Сумма: ${approved_amount} ₽</p>
       <p>Срок: ${approved_days} дней</p>
-      <button class="primary-btn">Оформить займ</button>
     `;
   }
 

@@ -1,0 +1,34 @@
+stages:
+  - test
+
+image: python:3.10
+
+before_script:
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+
+test_job:
+  stage: test
+  script:
+    - pytest -v
+
+
+stages:
+  - test
+
+image: docker:24.0
+
+services:
+  - docker:dind
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+test_job:
+  stage: test
+  script:
+    - docker compose build
+    - docker compose up -d
+    - docker compose exec appl_service pytest -v
+    - docker compose exec spr pytest -v

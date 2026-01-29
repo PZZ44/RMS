@@ -9,7 +9,7 @@ app = FastAPI(title="BKI Mock Service")
 def calculate_bki_score(request: BKIRequest):
     # Имитация БКИ:
     # в реальности данные используются для поиска истории,
-    # здесь — просто валидируются схемой
+    # здесь - выпадает рандомное значение Скора КИ
 
     return BKIResponse(
         bki_score=randint(400, 750)

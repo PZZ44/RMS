@@ -1,6 +1,6 @@
 import requests
 
-SPR_URL = "http://spr:8001/spr"  # docker-compose имя сервиса
+SPR_URL = "http://spr:8001/spr"  
 
 def call_spr(payload: dict) -> dict:
     response = requests.post(

@@ -5,3 +5,6 @@ requests
 sqlalchemy
 psycopg2-binary
 sqlalchemy.orm
+pytest
+pytest-cov
+httpx

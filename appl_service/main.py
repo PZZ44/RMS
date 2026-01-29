@@ -23,9 +23,6 @@ app.add_middleware(
 )
 
 
-# =====================================================
-# DB init
-# =====================================================
 models.Base.metadata.create_all(bind=engine)
 
 
@@ -37,18 +34,15 @@ def get_db():
         db.close()
 
 
-# =====================================================
 # CREATE APPLICATION
-# =====================================================
+
 @app.post("/applications", response_model=schemas.ApplicationResponse)
 def create_application(
     application: schemas.ApplicationCreate,
     db: Session = Depends(get_db),
 ):
-    # 1. создаём заявку
     created_app = service.create_application(db, application)
 
-    # 2. payload в SPR
     spr_payload = {
         "id": created_app.id,
         "client_id": created_app.client_id,
@@ -64,7 +58,6 @@ def create_application(
         "requested_days": created_app.requested_days,
     }
 
-    # 3. вызов SPR
     try:
         spr_result = call_spr(spr_payload)
     except Exception as e:
@@ -73,7 +66,6 @@ def create_application(
             detail=f"SPR service error: {str(e)}"
         )
 
-    # 4. единый ответ (Application + SPR)
     return {
         "id": created_app.id,
         "client_id": created_app.client_id,
