@@ -26,15 +26,12 @@ def spr_decision(
         risk_band=spr.risk_band,
         decision=spr.decision,
         status=spr.status,
-        #product_type=spr.risk_band if decision != "REJECT" else None,
         requested_amount=data.requested_amount,
         requested_days=data.requested_days,
         approved_amount=spr.approved_amount or 0,
         approved_days=spr.approved_days or 0,
         reject_reason=spr.reject_reason,
     )
-
-#возможно надо актуаизировать spr responce под новую таблицу маин и схемас
 
 @app.post(
     "/spr/counter/accept",
@@ -48,7 +45,6 @@ def counter_accept(
         db=db,
         id=payload.id,
     )
-
 
 @app.post(
     "/spr/counter/reject",

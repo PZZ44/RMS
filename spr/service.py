@@ -7,9 +7,6 @@ from clients import call_risk_service, call_bki, call_sim
 from datetime import datetime, date
 
 
-# =====================================================
-# RISK BANDS
-# =====================================================
 # score_min, score_max, product_type, base_limit
 RISK_BANDS = [
     (0, 19,  "Very High", 0),
@@ -27,9 +24,6 @@ def get_risk_band(score: int):
     return "Very High", 0
 
 
-# =====================================================
-# BKI BANDS
-# =====================================================
 # score_min, score_max, decision, penalty
 BKI_BANDS = [
     (0,   449, "HARD_REJECT", None),
@@ -49,9 +43,6 @@ def apply_bki(score: int, bki_score: int):
     return score, False, None
 
 
-# =====================================================
-# SIM BANDS
-# =====================================================
 # score_min, score_max, penalty
 SIM_LIFETIME_BANDS = [
     (0, 0, -50),
@@ -82,9 +73,7 @@ def apply_sim(score: int, lifetime: int, clc: int):
     return score
 
 
-# =====================================================
-# MULTIPLIER & NORMALIZATION
-# =====================================================
+
 def loans_multiplier(loan_num: int) -> float:
     if loan_num <= 1:
         return 1.0
@@ -99,16 +88,12 @@ def normalize_score(score: int) -> int:
     return max(0, min(score, 100))
 
 
-# =====================================================
-# AGR NUMBER (SEQUENCE)
-# =====================================================
 def generate_agr_number(db: Session) -> str:
     seq = db.execute(text("SELECT nextval('agr_number_seq')")).scalar()
     year = datetime.now().year
     return f"ВВ-{year}/{seq:06d}"
 
 
-# Расчет возраста
 def calculate_age(birth_date_str: str) -> int:
     birth_date = date.fromisoformat(birth_date_str)
     today = date.today()
@@ -116,9 +101,6 @@ def calculate_age(birth_date_str: str) -> int:
         (today.month, today.day) < (birth_date.month, birth_date.day)
     )
 
-# =====================================================
-# REJECT HELPER 
-# =====================================================
 def _reject(
     db: Session,
     data: ApplicationData,
@@ -166,9 +148,8 @@ def expire_counters(db: Session):
     return len(expired)
 
 
-# =====================================================
-# MAIN DECISION PIPELINE (TRANSACTIONAL)
-# =====================================================
+# MAIN DECISION
+
 def make_decision(db: Session, data: ApplicationData):
     """
     Полный decision pipeline SPR
@@ -180,9 +161,6 @@ def make_decision(db: Session, data: ApplicationData):
 
     with db.begin():
 
-        # =================================================
-        # 0. История клиента (SPR — владелец логики)
-        # =================================================
         approved_loans = (
             db.query(func.count(SPR.id))
             .filter(
@@ -194,14 +172,10 @@ def make_decision(db: Session, data: ApplicationData):
 
         loyal_client = 1 if approved_loans > 0 else 0
 
-        # =================================================
-        # 1. Базовый скор
-        # =================================================
         score = 100 if loyal_client == 1 else 90
 
-        # =================================================
-        # 2. RISK SERVICE
-        # =================================================
+
+        # RISK
         age = calculate_age(data.birth_date)
 
         risk = call_risk_service({
@@ -222,9 +196,7 @@ def make_decision(db: Session, data: ApplicationData):
 
         score -= risk["penalties"]
 
-        # =================================================
-        # 3. BKI
-        # =================================================
+        # BKI
         bki = call_bki({
             "first_name": data.first_name,
             "last_name": data.last_name,
@@ -245,9 +217,7 @@ def make_decision(db: Session, data: ApplicationData):
             )
             return spr, "REJECT"
 
-        # =================================================
-        # 4. SIM
-        # =================================================
+        # SIM
         sim = call_sim({
             "first_name": data.first_name,
             "last_name": data.last_name,
@@ -259,9 +229,7 @@ def make_decision(db: Session, data: ApplicationData):
         score = apply_sim(score, sim["lifetime"], sim["clc"])
         score = normalize_score(score)
 
-        # =================================================
-        # 5. LIMIT & DECISION
-        # =================================================
+        # DECISION
         risk_band, base_limit = get_risk_band(score)
 
         limit = int(base_limit * loans_multiplier(approved_loans + 1))
@@ -287,9 +255,7 @@ def make_decision(db: Session, data: ApplicationData):
 
         approved_days = data.requested_days
 
-        # =================================================
-        # 6. SAVE SPR (ВСЕГДА)
-        # =================================================
+
         spr = SPR(
             id=int(data.id),
             client_id=data.client_id,
@@ -303,18 +269,13 @@ def make_decision(db: Session, data: ApplicationData):
         )
 
         db.add(spr)
-        db.flush()  # получаем spr.id
+        db.flush()  
 
-        # =================================================
-        # 7. ДОГОВОР — ТОЛЬКО APPROVED
-        # =================================================
         if decision == "APPROVED":
             spr.loan_num = approved_loans + 1
             spr.agr_number = generate_agr_number(db)
 
-        # =================================================
-        # 8. LOG SCORES
-        # =================================================
+        # SCORES SAVING
         db.add_all([
             SPRScore(
                 id=data.id,
